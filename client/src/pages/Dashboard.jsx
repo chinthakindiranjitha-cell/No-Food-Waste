@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
@@ -208,10 +209,21 @@ const Dashboard = () => {
               <h2 className="text-xl font-bold">Need to donate or request food rescue?</h2>
               <p className="text-amber-100 text-sm mt-1">Submit details in under 1 minute. Volunteers will handle pickup!</p>
             </div>
-            <button className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-amber-900 font-bold text-sm shadow-md hover:bg-amber-50 transition-colors shrink-0 cursor-pointer">
-              <PlusCircle className="w-5 h-5 text-amber-600" />
-              New Food Request
-            </button>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Link
+                to="/requests/my"
+                className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition-colors"
+              >
+                View My Requests
+              </Link>
+              <Link
+                to="/requests/new"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-amber-900 font-bold text-sm shadow-md hover:bg-amber-50 transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-5 h-5 text-amber-600" />
+                New Food Request
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

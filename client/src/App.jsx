@@ -6,6 +6,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import CreateRequest from './pages/CreateRequest';
+import MyRequests from './pages/MyRequests';
 
 function App() {
   return (
@@ -22,12 +24,30 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
+              {/* Requester Routes (Protected) */}
+              <Route
+                path="/requests/new"
+                element={
+                  <ProtectedRoute allowedRoles={['requester', 'admin']}>
+                    <CreateRequest />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/requests/my"
+                element={
+                  <ProtectedRoute allowedRoles={['requester', 'admin']}>
+                    <MyRequests />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <footer className="bg-white border-t border-amber-100 py-6 text-center text-xs text-slate-400">
-            <p>© {new Date().getFullYear()} No Food Waste Connect • Hackathon Initial Build</p>
+            <p>© {new Date().getFullYear()} No Food Waste Connect • Community Food Rescue Platform</p>
           </footer>
         </div>
       </Router>

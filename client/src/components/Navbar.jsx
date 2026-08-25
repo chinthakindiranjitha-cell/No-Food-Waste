@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HeartHandshake, LogOut, Menu, X, User as UserIcon, Shield, Bike, Utensils } from 'lucide-react';
+import { HeartHandshake, LogOut, Menu, X, User as UserIcon, Shield, Bike, Utensils, PlusCircle, List } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -65,8 +65,30 @@ const Navbar = () => {
                 location.pathname === '/' ? 'text-amber-600 font-semibold' : 'text-slate-600 hover:text-amber-600'
               }`}
             >
-              Dashboard
+              Overview
             </Link>
+
+            {user && (user.role === 'requester' || user.role === 'admin') && (
+              <>
+                <Link
+                  to="/requests/my"
+                  className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    location.pathname === '/requests/my' ? 'text-amber-600 font-semibold' : 'text-slate-600 hover:text-amber-600'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  My Requests
+                </Link>
+
+                <Link
+                  to="/requests/new"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 transition-colors"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-amber-700" />
+                  New Request
+                </Link>
+              </>
+            )}
 
             {user ? (
               <div className="flex items-center gap-4 pl-4 border-l border-amber-100">
@@ -131,8 +153,27 @@ const Navbar = () => {
             onClick={() => setMobileMenuOpen(false)}
             className="block py-2 text-base font-medium text-slate-700 hover:text-amber-600"
           >
-            Dashboard
+            Overview
           </Link>
+
+          {user && (user.role === 'requester' || user.role === 'admin') && (
+            <>
+              <Link
+                to="/requests/my"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block py-2 text-base font-medium text-slate-700 hover:text-amber-600"
+              >
+                My Requests
+              </Link>
+              <Link
+                to="/requests/new"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block py-2 text-base font-semibold text-amber-700"
+              >
+                + New Request
+              </Link>
+            </>
+          )}
 
           {user ? (
             <div className="pt-3 border-t border-slate-100 space-y-3">

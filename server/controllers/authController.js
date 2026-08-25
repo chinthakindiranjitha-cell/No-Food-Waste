@@ -10,6 +10,32 @@ const generateToken = (id) => {
   );
 };
 
+// Helper for user-friendly error messages (hides internal DB details from client)
+const sanitizeErrorMessage = (error, defaultMessage) => {
+  console.error('[Backend Auth Error]', error);
+
+  // Duplicate key (unique constraint)
+  if (error.code === 11000) {
+    return 'An account with this email address already exists.';
+  }
+
+  // Mongoose validation error
+  if (error.name === 'ValidationError') {
+    return 'Please provide valid information for all required fields.';
+  }
+
+  // Database connection / buffering / network error
+  if (
+    error.name === 'MongooseError' ||
+    error.name === 'MongoNetworkError' ||
+    (error.message && error.message.includes('buffering timed out'))
+  ) {
+    return 'Database service is currently experiencing connection delays. Please try again shortly.';
+  }
+
+  return defaultMessage || 'An unexpected error occurred. Please try again.';
+};
+
 // @desc    Register a new user (Does NOT issue JWT token; user must log in)
 // @route   POST /api/auth/register
 // @access  Public
@@ -17,20 +43,30 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role, phone, location } = req.body;
 
+    const normalizedName = name ? name.trim() : '';
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+
     // Validation
-    if (!name || !email || !password) {
+    if (!normalizedName || !normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide name, email, and password'
       });
     }
 
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
     // Check if user exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email'
+        message: 'An account with this email address already exists'
       });
     }
 
@@ -40,8 +76,8 @@ export const registerUser = async (req, res) => {
 
     // Create user
     const user = await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password,
       role: userRole,
       phone: phone || '',
@@ -49,7 +85,6 @@ export const registerUser = async (req, res) => {
     });
 
     if (user) {
-      // NOTE: No JWT token generated here per design feedback.
       return res.status(201).json({
         success: true,
         message: 'Registration successful! Please sign in with your credentials.',
@@ -65,14 +100,17 @@ export const registerUser = async (req, res) => {
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Invalid user data received'
+        message: 'Invalid user data received. Please check your inputs.'
       });
     }
   } catch (error) {
-    console.error('[Register Error]', error);
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to complete registration. Please try again.'
+    );
     return res.status(500).json({
       success: false,
-      message: error.message || 'Server error during registration'
+      message: userMessage
     });
   }
 };
@@ -84,8 +122,10 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+
     // Validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
@@ -93,11 +133,11 @@ export const loginUser = async (req, res) => {
     }
 
     // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
@@ -106,7 +146,7 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
@@ -138,10 +178,13 @@ export const loginUser = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[Login Error]', error);
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to log in at this time. Please try again.'
+    );
     return res.status(500).json({
       success: false,
-      message: error.message || 'Server error during login'
+      message: userMessage
     });
   }
 };
@@ -166,7 +209,7 @@ export const logoutUser = async (req, res) => {
     console.error('[Logout Error]', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error during logout'
+      message: 'Unable to complete logout. Please try again.'
     });
   }
 };
@@ -177,15 +220,24 @@ export const logoutUser = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User profile not found'
+      });
+    }
     return res.status(200).json({
       success: true,
       user
     });
   } catch (error) {
-    console.error('[GetMe Error]', error);
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to fetch user profile.'
+    );
     return res.status(500).json({
       success: false,
-      message: error.message || 'Server error fetching user profile'
+      message: userMessage
     });
   }
 };

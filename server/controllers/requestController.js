@@ -1,5 +1,24 @@
 import FoodRequest from '../models/FoodRequest.js';
 
+// Helper for user-friendly error messages
+const sanitizeErrorMessage = (error, defaultMessage) => {
+  console.error('[Backend Request Error]', error);
+
+  if (error.name === 'ValidationError') {
+    return 'Please provide valid information for all request fields.';
+  }
+
+  if (
+    error.name === 'MongooseError' ||
+    error.name === 'MongoNetworkError' ||
+    (error.message && error.message.includes('buffering timed out'))
+  ) {
+    return 'Database service is currently experiencing connection delays. Please try again shortly.';
+  }
+
+  return defaultMessage || 'An unexpected error occurred. Please try again.';
+};
+
 // @desc    Create a new food request
 // @route   POST /api/requests
 // @access  Private (Requester, Admin)
@@ -35,10 +54,10 @@ export const createFoodRequest = async (req, res) => {
     // Create food request record
     const foodRequest = await FoodRequest.create({
       requesterId: req.user._id,
-      foodType,
+      foodType: foodType.trim(),
       quantity: numericQuantity,
-      unit,
-      pickupAddress,
+      unit: unit.trim(),
+      pickupAddress: pickupAddress.trim(),
       location: location || { lat: null, lng: null },
       timeWindowStart: timeWindowStart ? new Date(timeWindowStart) : null,
       timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
@@ -52,10 +71,13 @@ export const createFoodRequest = async (req, res) => {
       foodRequest
     });
   } catch (error) {
-    console.error('[Create Food Request Error]', error);
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to submit food request right now. Please try again.'
+    );
     return res.status(500).json({
       success: false,
-      message: error.message || 'Server error creating food request'
+      message: userMessage
     });
   }
 };
@@ -74,10 +96,13 @@ export const getMyFoodRequests = async (req, res) => {
       requests
     });
   } catch (error) {
-    console.error('[Get My Food Requests Error]', error);
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to load your food requests right now. Please try again.'
+    );
     return res.status(500).json({
       success: false,
-      message: error.message || 'Server error fetching your food requests'
+      message: userMessage
     });
   }
 };

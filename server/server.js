@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import requestRoutes from './routes/requestRoutes.js';
@@ -17,7 +18,10 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl) or dev origins
+      callback(null, true);
+    },
     credentials: true
   })
 );
@@ -25,10 +29,24 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Database Readiness Check Middleware for API routes
+app.use((req, res, next) => {
+  // If requesting API and DB is disconnected (readyState !== 1), fail fast with friendly message
+  if (req.path.startsWith('/api/') && req.path !== '/api/health' && mongoose.connection.readyState !== 1) {
+    console.warn(`[DB Middleware Warning] Request to ${req.path} rejected because DB readyState is ${mongoose.connection.readyState}`);
+    return res.status(503).json({
+      success: false,
+      message: 'Database service is currently unavailable. Please try again shortly.'
+    });
+  }
+  next();
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
+    dbConnected: mongoose.connection.readyState === 1,
     app: 'No Food Waste Connect API',
     timestamp: new Date().toISOString()
   });
@@ -48,10 +66,17 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('[Global Error]', err.stack);
-  res.status(err.status || 500).json({
+  console.error('[Global Server Error]', err);
+  
+  // Never leak raw backend / database errors in HTTP response
+  const statusCode = err.status || err.statusCode || 500;
+  const userMessage = statusCode === 500
+    ? 'An unexpected error occurred on the server. Please try again later.'
+    : (err.message || 'Request failed.');
+
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error'
+    message: userMessage
   });
 });
 

@@ -30,4 +30,20 @@ export const authService = {
   },
 };
 
+// Food Request Service functions
+export const requestService = {
+  createRequest: async (requestData) => {
+    const response = await api.post('/requests', requestData);
+    return response.data;
+  },
+  getAllRequests: async () => {
+    const response = await api.get('/requests');
+    return response.data;
+  },
+  getMyRequests: async () => {
+    const response = await api.get('/requests/my');
+    return response.data;
+  },
+};
+
 export default api;

@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuthStatus = async () => {
       try {
         const res = await authService.getMe();
-        if (res.user) {
+        if (res?.user) {
           setUser(res.user);
         }
       } catch (err) {
@@ -31,12 +31,20 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const data = await authService.login({ email, password });
-      if (data.success && data.user) {
+      if (data?.success && data?.user) {
         setUser(data.user);
         return { success: true, user: data.user };
+      } else {
+        const msg = data?.message || 'Login failed. Please check your credentials.';
+        setError(msg);
+        return { success: false, error: msg };
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      const msg =
+        err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK'
+          ? 'Unable to connect to the server. Please ensure the backend is running.'
+          : 'Invalid email or password. Please try again.');
       setError(msg);
       return { success: false, error: msg };
     }
@@ -46,10 +54,19 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const data = await authService.register(userData);
-      // Registration successful; user will be directed to log in
-      return { success: true, message: data.message || 'Registration successful! Please log in.' };
+      if (data?.success) {
+        return { success: true, message: data.message || 'Registration successful! Please log in.' };
+      } else {
+        const msg = data?.message || 'Registration failed. Please try again.';
+        setError(msg);
+        return { success: false, error: msg };
+      }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Registration failed. Please try again.';
+      const msg =
+        err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK'
+          ? 'Unable to connect to the server. Please ensure the backend is running.'
+          : 'Registration failed. Please check your information and try again.');
       setError(msg);
       return { success: false, error: msg };
     }

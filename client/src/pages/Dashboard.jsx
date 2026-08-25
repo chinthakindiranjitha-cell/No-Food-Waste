@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { requestService } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
@@ -11,96 +13,67 @@ import {
   Clock,
   MapPin,
   Package,
-  CheckCircle2,
-  AlertCircle,
   ChevronRight,
   Filter,
-  RefreshCw
+  RefreshCw,
+  User as UserIcon
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  
-  // Persona state (defaults to logged-in user's role, or 'requester' if guest/demo)
+
+  // Persona state (defaults to logged-in user's role, or 'requester')
   const [activePersona, setActivePersona] = useState(user?.role || 'requester');
-  
-  // UI State toggles to demonstrate loading and empty states as required by design specs
-  const [isLoading, setIsLoading] = useState(false);
-  const [showEmpty, setShowEmpty] = useState(false);
-  
-  // Sample status filter
+
+  // Real data state from database
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Status Filter
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
 
-  // Sample mockup data representing Food Requests with all color-coded statuses
-  const sampleRequests = [
-    {
-      id: 'req-01',
-      foodType: 'Fresh Surplus Pastries & Sandwiches',
-      quantity: 25,
-      unit: 'boxes',
-      pickupAddress: '124 Community Bakery St, Downtown',
-      status: 'pending',
-      timeWindow: 'Today, 5:00 PM - 7:00 PM',
-      createdAt: '10 mins ago',
-      requesterName: 'Sunrise Bakery'
-    },
-    {
-      id: 'req-02',
-      foodType: 'Hot Catering Rice & Curry Trays',
-      quantity: 50,
-      unit: 'meals',
-      pickupAddress: '88 Tech Park Plaza, 3rd Floor',
-      status: 'accepted',
-      timeWindow: 'Today, 6:00 PM - 8:00 PM',
-      createdAt: '25 mins ago',
-      requesterName: 'Grand Hotel Catering'
-    },
-    {
-      id: 'req-03',
-      foodType: 'Assorted Organic Fruit Crates',
-      quantity: 8,
-      unit: 'crates',
-      pickupAddress: '45 Farmers Market Hub',
-      status: 'assigned',
-      timeWindow: 'Tomorrow, 9:00 AM - 11:00 AM',
-      createdAt: '1 hour ago',
-      requesterName: 'Green Valley Produce'
-    },
-    {
-      id: 'req-04',
-      foodType: 'Pre-packaged Soup & Bread Rolls',
-      quantity: 40,
-      unit: 'servings',
-      pickupAddress: '102 Hope Shelter Way',
-      status: 'collected',
-      timeWindow: 'Today, 2:00 PM - 4:00 PM',
-      createdAt: '2 hours ago',
-      requesterName: 'St. Jude Kitchen'
-    },
-    {
-      id: 'req-05',
-      foodType: 'Packaged Canned Goods & Milk',
-      quantity: 15,
-      unit: 'cartons',
-      pickupAddress: '304 Westside Supermarket',
-      status: 'delivered',
-      timeWindow: 'Yesterday, 4:00 PM',
-      createdAt: '1 day ago',
-      requesterName: 'Westside Grocery'
+  const fetchRealRequests = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // If logged in as admin or volunteer or viewing overview, fetch all requests in database
+      const res = await requestService.getAllRequests();
+      if (res.success) {
+        setRequests(res.requests || []);
+      }
+    } catch (err) {
+      console.error('[Dashboard Request Fetch Error]', err);
+      // Fallback if unauthenticated visitor views preview
+      setRequests([]);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
 
-  const filteredRequests = sampleRequests.filter((req) => {
+  useEffect(() => {
+    fetchRealRequests();
+  }, [user]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const filteredRequests = requests.filter((req) => {
     if (selectedStatusFilter === 'all') return true;
     return req.status === selectedStatusFilter;
   });
 
-  const triggerMockLoading = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  };
+  // Calculate live count statistics for admin overview
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const assignedCount = requests.filter(r => r.status === 'assigned' || r.status === 'accepted').length;
+  const deliveredCount = requests.filter(r => r.status === 'delivered' || r.status === 'collected').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -109,15 +82,17 @@ const Dashboard = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold uppercase tracking-wider">
-              Scaffolding Preview
+              Live Database System
             </span>
-            <span className="text-xs text-slate-400">Logged in as: <strong className="text-slate-700">{user?.name || 'Guest'}</strong> ({user?.role || 'demo'})</span>
+            <span className="text-xs text-slate-400">
+              User: <strong className="text-slate-700">{user?.name || 'Guest'}</strong> ({user?.role || 'visitor'})
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             No Food Waste Connect
           </h1>
           <p className="text-sm text-slate-500 mt-1 max-w-xl">
-            Empowering donors, volunteers, and admins to bridge surplus food to hungry neighbors seamlessly.
+            Connecting food donors, volunteers, and administrators to bridge surplus food to hungry neighbors seamlessly.
           </p>
         </div>
 
@@ -159,24 +134,15 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Interactive Controls Bar: Demo state toggles for loading & empty states */}
+      {/* Filter and Refresh Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-amber-50/60 border border-amber-100 p-4 rounded-2xl">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-900">Demo State Controls:</span>
           <button
-            onClick={triggerMockLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-xs font-semibold text-slate-700 hover:bg-amber-100/50 transition-colors shadow-2xs"
+            onClick={fetchRealRequests}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-xs font-semibold text-slate-700 hover:bg-amber-100/50 transition-colors shadow-2xs cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-amber-600' : ''}`} />
-            Trigger Loading State
-          </button>
-          <button
-            onClick={() => setShowEmpty(!showEmpty)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shadow-2xs ${
-              showEmpty ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-amber-200 text-slate-700 hover:bg-amber-100/50'
-            }`}
-          >
-            {showEmpty ? 'Showing Empty State (Click to toggle)' : 'Toggle Empty State'}
+            Refresh Requests ({requests.length} Total)
           </button>
         </div>
 
@@ -188,7 +154,7 @@ const Dashboard = () => {
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
             className="bg-white border border-slate-200 text-xs rounded-xl px-3 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           >
-            <option value="all">All Status Badges</option>
+            <option value="all">All Statuses ({requests.length})</option>
             <option value="pending">Pending (Yellow)</option>
             <option value="accepted">Accepted (Blue)</option>
             <option value="assigned">Assigned (Purple)</option>
@@ -198,8 +164,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Main Dashboard Content Rendered Based on Active Persona */}
-
       {/* 1. REQUESTER PERSONA VIEW */}
       {activePersona === 'requester' && (
         <div className="space-y-6">
@@ -208,34 +172,45 @@ const Dashboard = () => {
               <h2 className="text-xl font-bold">Need to donate or request food rescue?</h2>
               <p className="text-amber-100 text-sm mt-1">Submit details in under 1 minute. Volunteers will handle pickup!</p>
             </div>
-            <button className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-amber-900 font-bold text-sm shadow-md hover:bg-amber-50 transition-colors shrink-0 cursor-pointer">
-              <PlusCircle className="w-5 h-5 text-amber-600" />
-              New Food Request
-            </button>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Link
+                to="/requests/my"
+                className="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-sm shadow-sm transition-colors"
+              >
+                View My Requests
+              </Link>
+              <Link
+                to="/requests/new"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-amber-900 font-bold text-sm shadow-md hover:bg-amber-50 transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-5 h-5 text-amber-600" />
+                New Food Request
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">Your Active Requests</h3>
-            <span className="text-xs text-slate-500">Showing status updates in real-time</span>
+            <h3 className="text-lg font-bold text-slate-900">Food Requests Queue</h3>
+            <span className="text-xs text-slate-500">Real-time database records</span>
           </div>
 
           {isLoading ? (
-            <LoadingState message="Fetching your food donation requests..." />
-          ) : showEmpty ? (
+            <LoadingState message="Fetching live food requests from database..." />
+          ) : filteredRequests.length === 0 ? (
             <EmptyState
-              title="No food requests submitted yet"
-              message="You have no active food requests. Create your first donation request to help connect food with local shelters!"
-              actionLabel="Create Request Now"
-              onAction={() => setShowEmpty(false)}
+              title="No food requests in database"
+              message="There are currently no food requests recorded in the system. Be the first to create a request!"
+              actionLabel="Submit Food Request Now"
+              onAction={() => window.location.href = '/requests/new'}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredRequests.map((req) => (
-                <div key={req.id} className="bg-white rounded-2xl border border-amber-100 p-5 shadow-xs hover:shadow-md transition-shadow space-y-4">
+                <div key={req._id} className="bg-white rounded-2xl border border-amber-100 p-5 shadow-xs hover:shadow-md transition-shadow space-y-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h4 className="font-bold text-slate-900 text-base">{req.foodType}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{req.createdAt}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{formatDate(req.createdAt)}</p>
                     </div>
                     <StatusBadge status={req.status} />
                   </div>
@@ -251,15 +226,17 @@ const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span><strong>Window:</strong> {req.timeWindow}</span>
+                      <span><strong>Window:</strong> {req.timeWindowStart ? `${formatDate(req.timeWindowStart)}` : 'Flexible'}</span>
                     </div>
                   </div>
 
                   <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-xs font-semibold text-slate-500">Requester: {req.requesterName}</span>
-                    <button className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
-                      Details <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="text-xs font-semibold text-slate-500 truncate max-w-[180px]">
+                      Donor: {req.requesterId?.name || 'Anonymous User'}
+                    </span>
+                    <Link to="/requests/my" className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                      My Timeline <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -268,7 +245,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* 2. VOLUNTEER PERSONA VIEW (Mobile-first focused) */}
+      {/* 2. VOLUNTEER PERSONA VIEW */}
       {activePersona === 'volunteer' && (
         <div className="space-y-6">
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-2xl p-6 text-white shadow-md">
@@ -276,26 +253,27 @@ const Dashboard = () => {
               <Bike className="w-4 h-4" /> Mobile Volunteer Dashboard
             </div>
             <h2 className="text-xl font-bold">Nearby Food Pickups & Deliveries</h2>
-            <p className="text-indigo-100 text-sm mt-1">Scan assignments quickly and mark status updates on the go.</p>
+            <p className="text-indigo-100 text-sm mt-1">Scan real active requests and mark status updates on the go.</p>
           </div>
 
           {isLoading ? (
-            <LoadingState message="Finding nearby volunteer assignments..." />
-          ) : showEmpty ? (
+            <LoadingState message="Finding live volunteer assignments..." />
+          ) : filteredRequests.length === 0 ? (
             <EmptyState
               icon={Bike}
-              title="No volunteer assignments found"
-              message="There are no pending food pickups requiring volunteer assignment in your area right now."
+              title="No food requests available"
+              message="There are no active food requests in the database matching your criteria right now."
               actionLabel="Refresh List"
-              onAction={() => setShowEmpty(false)}
+              onAction={fetchRealRequests}
             />
           ) : (
             <div className="space-y-4 max-w-2xl mx-auto">
               {filteredRequests.map((req) => (
-                <div key={req.id} className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-xs hover:border-indigo-300 transition-all space-y-4">
+                <div key={req._id} className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-xs hover:border-indigo-300 transition-all space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2.5 py-1 rounded-lg">
-                      {req.requesterName}
+                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                      <UserIcon className="w-3 h-3" />
+                      {req.requesterId?.name || 'Registered Donor'}
                     </span>
                     <StatusBadge status={req.status} />
                   </div>
@@ -303,7 +281,7 @@ const Dashboard = () => {
                   <div>
                     <h4 className="text-lg font-bold text-slate-900">{req.foodType}</h4>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                      {req.quantity} {req.unit} • {req.timeWindow}
+                      {req.quantity} {req.unit} • Created: {formatDate(req.createdAt)}
                     </p>
                   </div>
 
@@ -316,11 +294,11 @@ const Dashboard = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 pt-1">
-                    <button className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs text-center transition-colors shadow-2xs">
+                    <button className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs text-center transition-colors shadow-2xs cursor-pointer">
                       Accept Pickup
                     </button>
-                    <button className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs text-center transition-colors">
-                      View Map & Directions
+                    <button className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs text-center transition-colors cursor-pointer">
+                      View Directions
                     </button>
                   </div>
                 </div>
@@ -330,47 +308,47 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* 3. ADMIN PERSONA VIEW (Fast scanning layout) */}
+      {/* 3. ADMIN PERSONA VIEW (Shows ALL actual user requests) */}
       {activePersona === 'admin' && (
         <div className="space-y-6">
-          <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-md flex items-center justify-between">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-rose-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                <Shield className="w-4 h-4" /> Operations Overview
+                <Shield className="w-4 h-4" /> Operations Overview (Live Database)
               </div>
-              <h2 className="text-xl font-bold">Admin Dispatch & Request Queue</h2>
+              <h2 className="text-xl font-bold">Admin Dispatch & All User Requests</h2>
               <p className="text-slate-400 text-sm mt-1">Scan requests fast and dispatch volunteers with minimal clicks.</p>
             </div>
-            <div className="hidden sm:flex gap-3 text-center">
+            <div className="flex gap-3 text-center self-start sm:self-auto">
               <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 min-w-[90px]">
-                <div className="text-xl font-bold text-amber-400">12</div>
+                <div className="text-xl font-bold text-amber-400">{pendingCount}</div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase">Pending</div>
               </div>
               <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 min-w-[90px]">
-                <div className="text-xl font-bold text-purple-400">8</div>
-                <div className="text-[10px] text-slate-400 font-semibold uppercase">Assigned</div>
+                <div className="text-xl font-bold text-purple-400">{assignedCount}</div>
+                <div className="text-[10px] text-slate-400 font-semibold uppercase">Active</div>
               </div>
               <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 min-w-[90px]">
-                <div className="text-xl font-bold text-emerald-400">45</div>
+                <div className="text-xl font-bold text-emerald-400">{deliveredCount}</div>
                 <div className="text-[10px] text-slate-400 font-semibold uppercase">Delivered</div>
               </div>
             </div>
           </div>
 
           {isLoading ? (
-            <LoadingState message="Loading operational dispatch queue..." />
-          ) : showEmpty ? (
+            <LoadingState message="Loading live operational dispatch queue from database..." />
+          ) : filteredRequests.length === 0 ? (
             <EmptyState
               icon={Shield}
-              title="Dispatch queue empty"
-              message="All requests have been successfully processed or delivered!"
-              actionLabel="Reset Filters"
-              onAction={() => setShowEmpty(false)}
+              title="No requests in database"
+              message="No food requests from actual users have been submitted yet."
+              actionLabel="Refresh Requests"
+              onAction={fetchRealRequests}
             />
           ) : (
             <div className="space-y-3">
               {filteredRequests.map((req) => (
-                <div key={req.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs hover:border-amber-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div key={req._id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs hover:border-amber-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
                       <Package className="w-5 h-5" />
@@ -381,16 +359,16 @@ const Dashboard = () => {
                         <StatusBadge status={req.status} />
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
-                        <strong>Donor:</strong> {req.requesterName} • <strong>Qty:</strong> {req.quantity} {req.unit} • <strong>Loc:</strong> {req.pickupAddress}
+                        <strong>Requester:</strong> {req.requesterId?.name || 'User'} ({req.requesterId?.email || 'N/A'}) • <strong>Qty:</strong> {req.quantity} {req.unit} • <strong>Loc:</strong> {req.pickupAddress}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-                    <button className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs transition-colors">
+                    <button className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs transition-colors cursor-pointer">
                       Assign Volunteer
                     </button>
-                    <button className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors">
+                    <button className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors cursor-pointer">
                       View Log
                     </button>
                   </div>

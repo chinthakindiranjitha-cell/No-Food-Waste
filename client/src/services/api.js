@@ -36,12 +36,29 @@ export const requestService = {
     const response = await api.post('/requests', requestData);
     return response.data;
   },
-  getAllRequests: async () => {
-    const response = await api.get('/requests');
+  getAllRequests: async (status) => {
+    const params = status && status !== 'all' ? { status } : {};
+    const response = await api.get('/requests', { params });
     return response.data;
   },
   getMyRequests: async () => {
     const response = await api.get('/requests/my');
+    return response.data;
+  },
+  updateStatus: async (id, status) => {
+    const response = await api.patch(`/requests/${id}/status`, { status });
+    return response.data;
+  },
+  assignVolunteer: async (requestId, volunteerId) => {
+    const response = await api.post(`/requests/${requestId}/assign`, { volunteerId });
+    return response.data;
+  },
+};
+
+// Volunteer Service functions
+export const volunteerService = {
+  getAvailable: async () => {
+    const response = await api.get('/volunteers/available');
     return response.data;
   },
 };

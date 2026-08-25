@@ -82,6 +82,32 @@ export const createFoodRequest = async (req, res) => {
   }
 };
 
+// @desc    Get all food requests in the system (for Admin / Volunteer overview)
+// @route   GET /api/requests
+// @access  Private (Admin, Volunteer, Requester)
+export const getAllFoodRequests = async (req, res) => {
+  try {
+    const requests = await FoodRequest.find()
+      .populate('requesterId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: requests.length,
+      requests
+    });
+  } catch (error) {
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to load food requests at this time.'
+    );
+    return res.status(500).json({
+      success: false,
+      message: userMessage
+    });
+  }
+};
+
 // @desc    Get all requests submitted by the logged-in requester
 // @route   GET /api/requests/my
 // @access  Private (Requester, Admin)

@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema(
       lat: { type: Number, default: null },
       lng: { type: Number, default: null }
     },
+    isAvailable: {
+      type: Boolean,
+      default: true
+    },
     createdAt: {
       type: Date,
       default: Date.now

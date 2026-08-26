@@ -90,6 +90,18 @@ const Navbar = () => {
               </>
             )}
 
+            {user && (user.role === 'volunteer' || user.role === 'admin') && (
+              <Link
+                to="/volunteer-dashboard"
+                className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  location.pathname === '/volunteer-dashboard' ? 'text-indigo-600 font-semibold' : 'text-slate-600 hover:text-indigo-600'
+                }`}
+              >
+                <Bike className="w-4 h-4" />
+                Volunteer Portal
+              </Link>
+            )}
+
             {user && user.role === 'admin' && (
               <Link
                 to="/admin"
@@ -185,6 +197,17 @@ const Navbar = () => {
                 + New Request
               </Link>
             </>
+          )}
+
+          {user && (user.role === 'volunteer' || user.role === 'admin') && (
+            <Link
+              to="/volunteer-dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-base font-semibold text-indigo-700 flex items-center gap-1.5"
+            >
+              <Bike className="w-4 h-4" />
+              Volunteer Portal
+            </Link>
           )}
 
           {user && user.role === 'admin' && (

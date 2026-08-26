@@ -10,6 +10,8 @@ import CreateRequest from './pages/CreateRequest';
 import MyRequests from './pages/MyRequests';
 import AdminDashboard from './pages/AdminDashboard';
 
+import VolunteerDashboard from './pages/VolunteerDashboard';
+
 function App() {
   return (
     <AuthProvider>
@@ -39,6 +41,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['requester', 'admin']}>
                     <MyRequests />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Volunteer Dashboard Route (Volunteer & Admin) */}
+              <Route
+                path="/volunteer-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['volunteer', 'admin']}>
+                    <VolunteerDashboard />
                   </ProtectedRoute>
                 }
               />

@@ -4,6 +4,7 @@ import { volunteerService, assignmentService } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
+import MapView from '../components/MapView';
 import {
   Bike,
   CheckCircle2,
@@ -16,7 +17,9 @@ import {
   Power,
   Check,
   Truck,
-  AlertCircle
+  AlertCircle,
+  Map as MapIcon,
+  List as ListIcon
 } from 'lucide-react';
 
 const VolunteerDashboard = () => {
@@ -30,6 +33,7 @@ const VolunteerDashboard = () => {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
 
   const fetchAssignments = async () => {
     setIsLoading(true);
@@ -216,26 +220,51 @@ const VolunteerDashboard = () => {
           </button>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200/80">
-          {[
-            { id: 'all', label: `All (${totalAssigned})` },
-            { id: 'assigned', label: `Assigned (${pendingPickup})` },
-            { id: 'collected', label: `In Transit (${inTransit})` },
-            { id: 'delivered', label: `Delivered (${completed})` }
-          ].map((tab) => (
+        {/* View Mode Toggle: List vs Map */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80">
+            {[
+              { id: 'all', label: `All (${totalAssigned})` },
+              { id: 'assigned', label: `Assigned (${pendingPickup})` },
+              { id: 'collected', label: `In Transit (${inTransit})` },
+              { id: 'delivered', label: `Delivered (${completed})` }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  statusFilter === tab.id
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80">
             <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                statusFilter === tab.id
+              onClick={() => setViewMode('list')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'list'
                   ? 'bg-indigo-600 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {tab.label}
+              <ListIcon className="w-3.5 h-3.5" /> List
             </button>
-          ))}
+            <button
+              onClick={() => setViewMode('map')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'map'
+                  ? 'bg-amber-500 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <MapIcon className="w-3.5 h-3.5" /> Map
+            </button>
+          </div>
         </div>
       </div>
 
@@ -247,9 +276,22 @@ const VolunteerDashboard = () => {
         </div>
       )}
 
-      {/* Main List Area */}
+      {/* Main Area: Map View or List View */}
       {isLoading ? (
         <LoadingState message="Fetching your assigned food pickups..." />
+      ) : viewMode === 'map' ? (
+        <div className="space-y-4">
+          <MapView
+            requests={filteredAssignments.map((a) => ({
+              ...a.requestId,
+              _id: a.requestId?._id || a._id,
+              status: a.status
+            }))}
+            userLocation={user?.location}
+            title={`Volunteer Pickup & Route Map (${filteredAssignments.length} Pickups)`}
+            height="500px"
+          />
+        </div>
       ) : filteredAssignments.length === 0 ? (
         <EmptyState
           icon={Bike}

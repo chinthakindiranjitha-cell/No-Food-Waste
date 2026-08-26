@@ -4,6 +4,7 @@ import { requestService, volunteerService } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
+import MapView from '../components/MapView';
 import {
   Shield,
   RefreshCw,
@@ -21,7 +22,9 @@ import {
   Users,
   FileText,
   ChevronDown,
-  Search
+  Search,
+  Map as MapIcon,
+  List as ListIcon
 } from 'lucide-react';
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
@@ -202,6 +205,7 @@ const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toast, setToast] = useState(null);
@@ -360,32 +364,62 @@ const AdminDashboard = () => {
         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} colorClass="border-rose-200 text-rose-700" />
       </div>
 
-      {/* ── Filter Bar ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-2">
-        <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-        <span className="text-xs font-semibold text-slate-500 mr-1">Filter:</span>
-        {STATUS_FILTERS.map((f) => (
+      {/* ── Filter Bar & View Toggle ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+          <span className="text-xs font-semibold text-slate-500 mr-1">Filter:</span>
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                statusFilter === f.value
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* View Mode Toggle: List vs Map */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
-            key={f.value}
-            onClick={() => setStatusFilter(f.value)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === f.value
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            onClick={() => setViewMode('list')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            {f.label}
+            <ListIcon className="w-3.5 h-3.5" /> List View
           </button>
-        ))}
-        <div className="ml-auto text-xs text-slate-400 font-medium">
-          {stats.total} request{stats.total !== 1 ? 's' : ''} •{' '}
-          {volunteers.length} volunteer{volunteers.length !== 1 ? 's' : ''}
+          <button
+            onClick={() => setViewMode('map')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'map'
+                ? 'bg-amber-500 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <MapIcon className="w-3.5 h-3.5" /> Map View
+          </button>
         </div>
       </div>
 
-      {/* ── Requests Table / Card List ── */}
+      {/* ── Requests Display: Map View or Card List ── */}
       {isLoading ? (
-        <LoadingState message="Loading all food requests from database..." />
+        <LoadingState message="Loading food requests from database..." />
+      ) : viewMode === 'map' ? (
+        <div className="space-y-4">
+          <MapView
+            requests={filteredRequests}
+            title={`Active Food Requests Map (${filteredRequests.length} Showing)`}
+            height="520px"
+          />
+        </div>
       ) : filteredRequests.length === 0 ? (
         <EmptyState
           icon={Shield}

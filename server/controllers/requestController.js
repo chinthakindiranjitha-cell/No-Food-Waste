@@ -53,6 +53,32 @@ export const createFoodRequest = async (req, res) => {
       });
     }
 
+    let finalLocation = location || { lat: null, lng: null };
+
+    // Geocode address using OpenStreetMap Nominatim API if no explicit location provided
+    if (!finalLocation.lat && !finalLocation.lng && pickupAddress) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pickupAddress.trim())}&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'FoodWastageApp/1.0 (Contact: support@foodwastage.local)'
+            }
+          }
+        );
+        const data = await response.json();
+        if (data && data.length > 0) {
+          finalLocation = {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon) // Nominatim returns 'lon' instead of 'lng'
+          };
+        }
+      } catch (geocodeError) {
+        console.error('[Geocoding Error]:', geocodeError);
+        // Silently proceed if geocoding fails so user isn't blocked from submitting
+      }
+    }
+
     // Create food request record
     const foodRequest = await FoodRequest.create({
       requesterId: req.user._id,
@@ -60,7 +86,7 @@ export const createFoodRequest = async (req, res) => {
       quantity: numericQuantity,
       unit: unit.trim(),
       pickupAddress: pickupAddress.trim(),
-      location: location || { lat: null, lng: null },
+      location: finalLocation,
       timeWindowStart: timeWindowStart ? new Date(timeWindowStart) : null,
       timeWindowEnd: timeWindowEnd ? new Date(timeWindowEnd) : null,
       photos: Array.isArray(photos) ? photos : photos ? [photos] : [],

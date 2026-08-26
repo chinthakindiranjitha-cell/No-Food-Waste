@@ -223,7 +223,7 @@ const AdminDashboard = () => {
 
       try {
         const [reqRes, volRes] = await Promise.all([
-          requestService.getAllRequests(statusFilter),
+          requestService.getAllRequests(), // Always fetch all for stats
           volunteerService.getAvailable(),
         ]);
         if (reqRes.success) setRequests(reqRes.requests || []);
@@ -236,7 +236,7 @@ const AdminDashboard = () => {
         setIsRefreshing(false);
       }
     },
-    [statusFilter]
+    [] // Remove statusFilter dependency
   );
 
   useEffect(() => {
@@ -304,9 +304,12 @@ const AdminDashboard = () => {
     pending: requests.filter((r) => r.status === 'pending').length,
     accepted: requests.filter((r) => r.status === 'accepted').length,
     assigned: requests.filter((r) => r.status === 'assigned').length,
-    delivered: requests.filter((r) => ['collected', 'delivered'].includes(r.status)).length,
+    collected: requests.filter((r) => r.status === 'collected').length,
+    delivered: requests.filter((r) => r.status === 'delivered').length,
     rejected: requests.filter((r) => r.status === 'rejected').length,
   };
+
+  const filteredRequests = requests.filter(r => statusFilter === 'all' || r.status === statusFilter);
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -347,11 +350,12 @@ const AdminDashboard = () => {
       </div>
 
       {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1">
         <StatCard label="Total" value={stats.total} icon={FileText} colorClass="border-slate-200 text-slate-700" />
         <StatCard label="Pending" value={stats.pending} icon={Clock} colorClass="border-amber-200 text-amber-700" />
         <StatCard label="Accepted" value={stats.accepted} icon={CheckCircle} colorClass="border-blue-200 text-blue-700" />
         <StatCard label="Assigned" value={stats.assigned} icon={UserCheck} colorClass="border-purple-200 text-purple-700" />
+        <StatCard label="Collected" value={stats.collected} icon={Package} colorClass="border-orange-200 text-orange-700" />
         <StatCard label="Delivered" value={stats.delivered} icon={Package} colorClass="border-emerald-200 text-emerald-700" />
         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} colorClass="border-rose-200 text-rose-700" />
       </div>
@@ -382,7 +386,7 @@ const AdminDashboard = () => {
       {/* ── Requests Table / Card List ── */}
       {isLoading ? (
         <LoadingState message="Loading all food requests from database..." />
-      ) : requests.length === 0 ? (
+      ) : filteredRequests.length === 0 ? (
         <EmptyState
           icon={Shield}
           title="No requests found"
@@ -396,7 +400,7 @@ const AdminDashboard = () => {
         />
       ) : (
         <div className="space-y-3">
-          {requests.map((req) => {
+          {filteredRequests.map((req) => {
             const isActionLoading = actionLoadingId === req._id;
             const isPending = req.status === 'pending';
             const isAccepted = req.status === 'accepted';

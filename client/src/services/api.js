@@ -61,6 +61,22 @@ export const volunteerService = {
     const response = await api.get('/volunteers/available');
     return response.data;
   },
+  toggleAvailability: async (isAvailable) => {
+    const response = await api.patch('/volunteers/availability', { isAvailable });
+    return response.data;
+  },
+};
+
+// Assignment Service functions
+export const assignmentService = {
+  getMyAssignments: async () => {
+    const response = await api.get('/assignments/my');
+    return response.data;
+  },
+  updateStatus: async (id, status) => {
+    const response = await api.patch(`/assignments/${id}/status`, { status });
+    return response.data;
+  },
 };
 
 export default api;

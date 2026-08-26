@@ -1,4 +1,6 @@
 import FoodRequest from '../models/FoodRequest.js';
+import Assignment from '../models/Assignment.js';
+import User from '../models/User.js';
 
 // Helper for user-friendly error messages
 const sanitizeErrorMessage = (error, defaultMessage) => {
@@ -82,12 +84,19 @@ export const createFoodRequest = async (req, res) => {
   }
 };
 
-// @desc    Get all food requests in the system (for Admin / Volunteer overview)
+// @desc    Get all food requests (admin: filterable by status)
 // @route   GET /api/requests
 // @access  Private (Admin, Volunteer, Requester)
 export const getAllFoodRequests = async (req, res) => {
   try {
-    const requests = await FoodRequest.find()
+    const filter = {};
+
+    // Allow admin/volunteer to filter by status via ?status=pending etc.
+    if (req.query.status && req.query.status !== 'all') {
+      filter.status = req.query.status;
+    }
+
+    const requests = await FoodRequest.find(filter)
       .populate('requesterId', 'name email phone')
       .sort({ createdAt: -1 });
 
@@ -125,6 +134,114 @@ export const getMyFoodRequests = async (req, res) => {
     const userMessage = sanitizeErrorMessage(
       error,
       'Unable to load your food requests right now. Please try again.'
+    );
+    return res.status(500).json({
+      success: false,
+      message: userMessage
+    });
+  }
+};
+
+// @desc    Update request status (accept / reject / etc.)
+// @route   PATCH /api/requests/:id/status
+// @access  Private (Admin only)
+export const updateRequestStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['pending', 'accepted', 'rejected', 'assigned', 'collected', 'delivered'];
+
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Status must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const foodRequest = await FoodRequest.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    ).populate('requesterId', 'name email');
+
+    if (!foodRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Food request not found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Request status updated to "${status}"`,
+      foodRequest
+    });
+  } catch (error) {
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to update request status. Please try again.'
+    );
+    return res.status(500).json({
+      success: false,
+      message: userMessage
+    });
+  }
+};
+
+// @desc    Assign a volunteer to a food request (creates Assignment record)
+// @route   POST /api/requests/:id/assign
+// @access  Private (Admin only)
+export const assignVolunteer = async (req, res) => {
+  try {
+    const { volunteerId } = req.body;
+
+    if (!volunteerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Volunteer ID is required'
+      });
+    }
+
+    const foodRequest = await FoodRequest.findById(req.params.id);
+    if (!foodRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Food request not found'
+      });
+    }
+
+    const volunteer = await User.findOne({ _id: volunteerId, role: 'volunteer' });
+    if (!volunteer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Volunteer not found'
+      });
+    }
+
+    // Create the assignment record
+    const assignment = await Assignment.create({
+      requestId: foodRequest._id,
+      volunteerId: volunteer._id,
+      status: 'assigned'
+    });
+
+    // Update food request status to assigned
+    foodRequest.status = 'assigned';
+    await foodRequest.save();
+
+    const populated = await assignment.populate([
+      { path: 'requestId', select: 'foodType pickupAddress status' },
+      { path: 'volunteerId', select: 'name email phone' }
+    ]);
+
+    return res.status(201).json({
+      success: true,
+      message: `Volunteer "${volunteer.name}" assigned successfully`,
+      assignment: populated
+    });
+  } catch (error) {
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to assign volunteer. Please try again.'
     );
     return res.status(500).json({
       success: false,

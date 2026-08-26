@@ -90,6 +90,18 @@ const Navbar = () => {
               </>
             )}
 
+            {user && user.role === 'admin' && (
+              <Link
+                to="/admin"
+                className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  location.pathname === '/admin' ? 'text-rose-600 font-semibold' : 'text-slate-600 hover:text-rose-600'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                Admin Dashboard
+              </Link>
+            )}
+
             {user ? (
               <div className="flex items-center gap-4 pl-4 border-l border-amber-100">
                 <div className="flex items-center gap-2">
@@ -173,6 +185,17 @@ const Navbar = () => {
                 + New Request
               </Link>
             </>
+          )}
+
+          {user && user.role === 'admin' && (
+            <Link
+              to="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-base font-semibold text-rose-700 flex items-center gap-1.5"
+            >
+              <Shield className="w-4 h-4" />
+              Admin Dashboard
+            </Link>
           )}
 
           {user ? (

@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import requestRoutes from './routes/requestRoutes.js';
 import volunteerRoutes from './routes/volunteerRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -59,6 +60,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/volunteers', volunteerRoutes);
 app.use('/api/assignments', assignmentRoutes);
+app.use('/api/stats', statsRoutes);
 
 // 404 Handler
 app.use((req, res) => {

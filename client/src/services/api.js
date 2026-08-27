@@ -79,4 +79,12 @@ export const assignmentService = {
   },
 };
 
+// Stats Service functions
+export const statsService = {
+  getGlobalStats: async () => {
+    const response = await api.get('/stats');
+    return response.data;
+  }
+};
+
 export default api;

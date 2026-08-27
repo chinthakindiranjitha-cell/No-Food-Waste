@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { requestService, volunteerService } from '../services/api';
+import { requestService, volunteerService, statsService } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import MapView from '../components/MapView';
+import StatsPanel from '../components/StatsPanel';
 import {
   Shield,
   RefreshCw,
@@ -204,6 +205,7 @@ const AdminDashboard = () => {
 
   const [requests, setRequests] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
+  const [globalStats, setGlobalStats] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   const [isLoading, setIsLoading] = useState(true);
@@ -226,12 +228,17 @@ const AdminDashboard = () => {
       else setIsRefreshing(true);
 
       try {
-        const [reqRes, volRes] = await Promise.all([
+        const [reqRes, volRes, statsRes] = await Promise.all([
           requestService.getAllRequests(), // Always fetch all for stats
           volunteerService.getAvailable(),
+          statsService.getGlobalStats().catch((e) => {
+            console.warn('[AdminDashboard] Stats fetch fallback:', e);
+            return { success: false };
+          })
         ]);
         if (reqRes.success) setRequests(reqRes.requests || []);
         if (volRes.success) setVolunteers(volRes.volunteers || []);
+        if (statsRes?.success) setGlobalStats(statsRes.stats);
       } catch (err) {
         console.error('[AdminDashboard] Fetch error:', err);
         showToast('Failed to load data. Please refresh.', 'error');
@@ -240,7 +247,7 @@ const AdminDashboard = () => {
         setIsRefreshing(false);
       }
     },
-    [] // Remove statusFilter dependency
+    []
   );
 
   useEffect(() => {
@@ -363,6 +370,9 @@ const AdminDashboard = () => {
         <StatCard label="Delivered" value={stats.delivered} icon={Package} colorClass="border-emerald-200 text-emerald-700" />
         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} colorClass="border-rose-200 text-rose-700" />
       </div>
+
+      {/* ── Recharts Analytics Panel ── */}
+      <StatsPanel statsData={globalStats} isLoading={isLoading} />
 
       {/* ── Filter Bar & View Toggle ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">

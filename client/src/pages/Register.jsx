@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HeartHandshake, UserPlus, Mail, Lock, User, Phone, Utensils, Bike, Shield, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { HeartHandshake, UserPlus, Mail, Lock, User, Phone, Utensils, Bike, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -64,7 +64,7 @@ const Register = () => {
           Join No Food Waste Connect
         </h2>
         <p className="mt-1.5 text-center text-sm text-slate-500">
-          Choose your role to get started helping local communities
+          Choose your role — <span className="font-semibold text-amber-600">Requester</span> or <span className="font-semibold text-indigo-600">Volunteer</span> — to get started
         </p>
       </div>
 
@@ -78,49 +78,38 @@ const Register = () => {
           )}
 
           <form className="space-y-5" onSubmit={handleSubmit}>
-            {/* Persona Role Selection Cards */}
+            {/* Persona Role Selection Cards — Requester & Volunteer only */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                Select Your Persona Role
+                Select Your Role
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, role: 'requester' })}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                  className={`p-4 rounded-xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
                     formData.role === 'requester'
                       ? 'border-amber-500 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20 font-semibold'
                       : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <Utensils className="w-5 h-5 mb-1 text-amber-600" />
-                  <span className="text-xs">Requester</span>
+                  <Utensils className="w-6 h-6 mb-1.5 text-amber-600" />
+                  <span className="text-sm font-bold">Requester / Donor</span>
+                  <span className="text-xs text-slate-500 mt-0.5">Submit food rescue requests</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, role: 'volunteer' })}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                  className={`p-4 rounded-xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
                     formData.role === 'volunteer'
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/20 font-semibold'
                       : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <Bike className="w-5 h-5 mb-1 text-indigo-600" />
-                  <span className="text-xs">Volunteer</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'admin' })}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
-                    formData.role === 'admin'
-                      ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-500/20 font-semibold'
-                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <Shield className="w-5 h-5 mb-1 text-rose-600" />
-                  <span className="text-xs">Admin</span>
+                  <Bike className="w-6 h-6 mb-1.5 text-indigo-600" />
+                  <span className="text-sm font-bold">Volunteer</span>
+                  <span className="text-xs text-slate-500 mt-0.5">Pick up &amp; deliver food</span>
                 </button>
               </div>
             </div>

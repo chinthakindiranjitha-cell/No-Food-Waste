@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 const VolunteerDashboard = () => {
-  const { user, checkAuthStatus } = useAuth();
+  const { user } = useAuth();
 
   const [isAvailable, setIsAvailable] = useState(user?.isAvailable ?? true);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
@@ -65,10 +65,6 @@ const VolunteerDashboard = () => {
       const res = await volunteerService.toggleAvailability(nextState);
       if (res.success) {
         setIsAvailable(res.isAvailable);
-        // Refresh auth context so navbar or app state updates
-        if (checkAuthStatus) {
-          checkAuthStatus();
-        }
       }
     } catch (err) {
       console.error('[Toggle Availability Error]', err);

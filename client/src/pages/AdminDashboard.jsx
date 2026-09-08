@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { requestService, volunteerService, statsService } from '../services/api';
+import { requestService, volunteerService } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import MapView from '../components/MapView';
-import StatsPanel from '../components/StatsPanel';
 import {
   Shield,
   RefreshCw,
@@ -20,26 +20,28 @@ import {
   Phone,
   Mail,
   AlertTriangle,
-  Users,
-  FileText,
-  ChevronDown,
   Search,
   Map as MapIcon,
-  List as ListIcon
+  List as ListIcon,
+  TrendingUp,
+  FileText
 } from 'lucide-react';
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, colorClass, icon: Icon }) => (
-  <div className={`bg-white rounded-2xl border p-5 shadow-xs flex items-center gap-4 ${colorClass}`}>
-    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-current/10">
-      <Icon className="w-6 h-6" />
+  <div className={`bg-white rounded-2xl border pt-5 pb-5 shadow-xs flex items-center gap-4 ${colorClass}`}>
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-current/10">
+      <Icon className="w-7 h-7" />
     </div>
     <div>
-      <div className="text-2xl font-extrabold leading-none">{value}</div>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-70 mt-1">{label}</div>
+      <div className="text-3xl font-black leading-none">{value}</div>
+      <div className="text-xs sm:text-sm font-bold uppercase tracking-wider opacity-70 mt-1">{label}</div>
     </div>
   </div>
 );
+
+
+
 
 // ─── Volunteer Assignment Modal ───────────────────────────────────────────────
 const AssignModal = ({ request, volunteers, onAssign, onClose, isAssigning }) => {
@@ -205,7 +207,6 @@ const AdminDashboard = () => {
 
   const [requests, setRequests] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
-  const [globalStats, setGlobalStats] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   const [isLoading, setIsLoading] = useState(true);
@@ -228,17 +229,12 @@ const AdminDashboard = () => {
       else setIsRefreshing(true);
 
       try {
-        const [reqRes, volRes, statsRes] = await Promise.all([
-          requestService.getAllRequests(), // Always fetch all for stats
-          volunteerService.getAvailable(),
-          statsService.getGlobalStats().catch((e) => {
-            console.warn('[AdminDashboard] Stats fetch fallback:', e);
-            return { success: false };
-          })
+        const [reqRes, volRes] = await Promise.all([
+          requestService.getAllRequests(),
+          volunteerService.getAvailable()
         ]);
         if (reqRes.success) setRequests(reqRes.requests || []);
         if (volRes.success) setVolunteers(volRes.volunteers || []);
-        if (statsRes?.success) setGlobalStats(statsRes.stats);
       } catch (err) {
         console.error('[AdminDashboard] Fetch error:', err);
         showToast('Failed to load data. Please refresh.', 'error');
@@ -309,7 +305,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Stats
+
   const stats = {
     total: requests.length,
     pending: requests.filter((r) => r.status === 'pending').length,
@@ -335,34 +331,44 @@ const AdminDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
       {/* ── Header ── */}
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 text-rose-400 text-xs font-semibold uppercase tracking-wider mb-2">
-              <Shield className="w-4 h-4" /> Admin Dashboard • Live Database
+            <div className="flex items-center gap-2 text-rose-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-2">
+              <Shield className="w-4 h-4" /> Admin Portal • Operations Dispatch
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight">
               Dispatch &amp; Request Management
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Signed in as <span className="text-white font-semibold">{user?.name}</span> •{' '}
-              {user?.email}
+            <p className="text-slate-400 text-sm sm:text-base mt-1">
+              Signed in as <span className="text-white font-semibold">{user?.name}</span> ({user?.email})
             </p>
           </div>
-          <button
-            onClick={() => fetchData(true)}
-            disabled={isRefreshing}
-            className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/admin/stats"
+              className="inline-flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl font-black text-sm shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+            >
+              <TrendingUp className="w-4 h-4 text-slate-950" />
+              View Stats &amp; Analytics
+            </Link>
+
+            <button
+              onClick={() => fetchData(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1">
-        <StatCard label="Total" value={stats.total} icon={FileText} colorClass="border-slate-200 text-slate-700" />
+      {/* ── Stat Cards Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <StatCard label="Total" value={stats.total} icon={FileText} colorClass="border-slate-200 text-slate-800" />
         <StatCard label="Pending" value={stats.pending} icon={Clock} colorClass="border-amber-200 text-amber-700" />
         <StatCard label="Accepted" value={stats.accepted} icon={CheckCircle} colorClass="border-blue-200 text-blue-700" />
         <StatCard label="Assigned" value={stats.assigned} icon={UserCheck} colorClass="border-purple-200 text-purple-700" />
@@ -370,9 +376,6 @@ const AdminDashboard = () => {
         <StatCard label="Delivered" value={stats.delivered} icon={Package} colorClass="border-emerald-200 text-emerald-700" />
         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} colorClass="border-rose-200 text-rose-700" />
       </div>
-
-      {/* ── Recharts Analytics Panel ── */}
-      <StatsPanel statsData={globalStats} isLoading={isLoading} />
 
       {/* ── Filter Bar & View Toggle ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">

@@ -5,11 +5,11 @@ import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
 import CreateRequest from './pages/CreateRequest';
 import MyRequests from './pages/MyRequests';
 import AdminDashboard from './pages/AdminDashboard';
-
+import AdminStats from './pages/AdminStats';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 
 function App() {
@@ -20,18 +20,18 @@ function App() {
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Main Dashboard Route */}
-              <Route path="/" element={<Dashboard />} />
+              {/* Home Route — visible to everyone */}
+              <Route path="/" element={<Home />} />
 
               {/* Authentication Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              {/* Requester Routes (Protected) */}
+              {/* Requester Routes — Requester only */}
               <Route
                 path="/requests/new"
                 element={
-                  <ProtectedRoute allowedRoles={['requester', 'admin']}>
+                  <ProtectedRoute allowedRoles={['requester']}>
                     <CreateRequest />
                   </ProtectedRoute>
                 }
@@ -39,23 +39,23 @@ function App() {
               <Route
                 path="/requests/my"
                 element={
-                  <ProtectedRoute allowedRoles={['requester', 'admin']}>
+                  <ProtectedRoute allowedRoles={['requester']}>
                     <MyRequests />
                   </ProtectedRoute>
                 }
               />
 
-              {/* Volunteer Dashboard Route (Volunteer & Admin) */}
+              {/* Volunteer Portal Route — Volunteer only */}
               <Route
                 path="/volunteer-dashboard"
                 element={
-                  <ProtectedRoute allowedRoles={['volunteer', 'admin']}>
+                  <ProtectedRoute allowedRoles={['volunteer']}>
                     <VolunteerDashboard />
                   </ProtectedRoute>
                 }
               />
 
-              {/* Admin Dashboard Route (Admin only) */}
+              {/* Admin Portal Routes — Admin only */}
               <Route
                 path="/admin"
                 element={
@@ -64,12 +64,20 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/stats"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminStats />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
-          <footer className="bg-white border-t border-amber-100 py-6 text-center text-xs text-slate-400">
+          <footer className="bg-white border-t border-amber-100 py-6 text-center text-sm text-slate-400">
             <p>© {new Date().getFullYear()} No Food Waste Connect • Community Food Rescue Platform</p>
           </footer>
         </div>

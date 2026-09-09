@@ -45,6 +45,10 @@ export const requestService = {
     const response = await api.get('/requests/my');
     return response.data;
   },
+  getCriticalRequests: async () => {
+    const response = await api.get('/requests/critical');
+    return response.data;
+  },
   updateStatus: async (id, status) => {
     const response = await api.patch(`/requests/${id}/status`, { status });
     return response.data;

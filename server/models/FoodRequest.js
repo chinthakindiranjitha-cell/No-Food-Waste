@@ -1,5 +1,36 @@
 import mongoose from 'mongoose';
 
+export const CATEGORY_WINDOWS_HOURS = {
+  cooked: 2,
+  perishable: 6,
+  packaged: 24
+};
+
+export const calculateExpiresAt = (foodCategory, referenceDate = new Date()) => {
+  const hours = CATEGORY_WINDOWS_HOURS[foodCategory] || 2;
+  return new Date(new Date(referenceDate).getTime() + hours * 60 * 60 * 1000);
+};
+
+export const getUrgencyLevel = (doc) => {
+  const category = doc.foodCategory || 'cooked';
+  const totalWindowMs = (CATEGORY_WINDOWS_HOURS[category] || 2) * 60 * 60 * 1000;
+
+  const createdTime = doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now();
+  const expiresTime = doc.expiresAt
+    ? new Date(doc.expiresAt).getTime()
+    : createdTime + totalWindowMs;
+
+  const remainingMs = expiresTime - Date.now();
+  const ratio = remainingMs / totalWindowMs;
+
+  if (remainingMs <= 0 || ratio < 0.20) {
+    return 'critical';
+  } else if (ratio <= 0.50) {
+    return 'warning';
+  }
+  return 'safe';
+};
+
 const foodRequestSchema = new mongoose.Schema(
   {
     requesterId: {
@@ -11,6 +42,14 @@ const foodRequestSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please specify the food type'],
       trim: true
+    },
+    foodCategory: {
+      type: String,
+      enum: ['cooked', 'perishable', 'packaged'],
+      default: 'cooked'
+    },
+    expiresAt: {
+      type: Date
     },
     quantity: {
       type: Number,
@@ -58,5 +97,13 @@ const foodRequestSchema = new mongoose.Schema(
   }
 );
 
+foodRequestSchema.set('toJSON', { virtuals: true });
+foodRequestSchema.set('toObject', { virtuals: true });
+
+foodRequestSchema.virtual('urgencyLevel').get(function () {
+  return getUrgencyLevel(this);
+});
+
 const FoodRequest = mongoose.model('FoodRequest', foodRequestSchema);
 export default FoodRequest;
+

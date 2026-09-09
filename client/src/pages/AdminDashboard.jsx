@@ -7,6 +7,7 @@ import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import MapView from '../components/MapView';
 import BatchSuggestionsPanel from '../components/BatchSuggestionsPanel';
+import UrgencyBadge, { getCardUrgencyStyles, getUrgencyInfo } from '../components/UrgencyBadge';
 import {
   Shield,
   RefreshCw,
@@ -22,6 +23,8 @@ import {
   Phone,
   Mail,
   AlertTriangle,
+  AlertOctagon,
+  Flame,
   Search,
   Map as MapIcon,
   List as ListIcon,
@@ -96,7 +99,7 @@ const AssignModal = ({ request, volunteers, onAssign, onClose, isAssigning }) =>
         <div className="p-4 max-h-64 overflow-y-auto space-y-2">
           {filtered.length === 0 ? (
             <div className="text-center py-6 text-slate-500 text-sm">
-              <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <UserCheck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
               {volunteers.length === 0
                 ? 'No volunteers registered yet.'
                 : 'No volunteers match your search.'}
@@ -194,6 +197,7 @@ const Toast = ({ message, type, onDismiss }) => {
 
 // ─── Status Filter Pills ──────────────────────────────────────────────────────
 const STATUS_FILTERS = [
+  { value: 'critical', label: '🚨 Critical Requests' },
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
   { value: 'accepted', label: 'Accepted' },
@@ -208,6 +212,7 @@ const AdminDashboard = () => {
   const { user } = useAuth();
 
   const [requests, setRequests] = useState([]);
+  const [criticalRequests, setCriticalRequests] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
@@ -231,12 +236,14 @@ const AdminDashboard = () => {
       else setIsRefreshing(true);
 
       try {
-        const [reqRes, volRes] = await Promise.all([
+        const [reqRes, volRes, critRes] = await Promise.all([
           requestService.getAllRequests(),
-          volunteerService.getAvailable()
+          volunteerService.getAvailable(),
+          requestService.getCriticalRequests()
         ]);
         if (reqRes.success) setRequests(reqRes.requests || []);
         if (volRes.success) setVolunteers(volRes.volunteers || []);
+        if (critRes.success) setCriticalRequests(critRes.requests || []);
       } catch (err) {
         console.error('[AdminDashboard] Fetch error:', err);
         showToast('Failed to load data. Please refresh.', 'error');
@@ -262,6 +269,9 @@ const AdminDashboard = () => {
           prev.map((r) =>
             r._id === requestId ? { ...r, status: newStatus } : r
           )
+        );
+        setCriticalRequests((prev) =>
+          prev.filter((r) => r._id !== requestId || newStatus === 'accepted')
         );
         showToast(res.message || `Request ${newStatus}.`, 'success');
       }
@@ -293,6 +303,7 @@ const AdminDashboard = () => {
             r._id === assignModalRequest._id ? { ...r, status: 'assigned' } : r
           )
         );
+        setCriticalRequests((prev) => prev.filter((r) => r._id !== assignModalRequest._id));
         showToast(res.message || 'Volunteer assigned!', 'success');
         setAssignModalRequest(null);
       }
@@ -318,7 +329,17 @@ const AdminDashboard = () => {
     rejected: requests.filter((r) => r.status === 'rejected').length,
   };
 
-  const filteredRequests = requests.filter(r => statusFilter === 'all' || r.status === statusFilter);
+  // Compute pending/accepted critical items dynamically
+  const activeCriticalItems = requests.filter(
+    (r) =>
+      (r.status === 'pending' || r.status === 'accepted') &&
+      getUrgencyInfo(r).urgencyLevel === 'critical'
+  );
+
+  const filteredRequests =
+    statusFilter === 'critical'
+      ? activeCriticalItems.sort((a, b) => new Date(a.expiresAt || a.createdAt) - new Date(b.expiresAt || b.createdAt))
+      : requests.filter((r) => statusFilter === 'all' || r.status === statusFilter);
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -368,6 +389,32 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+      {/* ── Critical Urgency Top Alert Banner ── */}
+      {activeCriticalItems.length > 0 && statusFilter !== 'critical' && (
+        <div className="bg-rose-500 text-white p-5 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <Flame className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <div className="font-extrabold text-base uppercase tracking-wider">
+                🚨 {activeCriticalItems.length} Urgent Food Request{activeCriticalItems.length > 1 ? 's' : ''} Expiring Soon!
+              </div>
+              <p className="text-xs text-rose-100 mt-0.5">
+                Food safety window is near expiration (&lt;20% window left or expired). Immediate action or volunteer assignment required.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setStatusFilter('critical')}
+            className="px-4 py-2.5 bg-white text-rose-700 font-extrabold text-xs rounded-xl hover:bg-rose-100 transition-all shadow-md shrink-0 cursor-pointer"
+          >
+            View Critical Requests Now
+          </button>
+        </div>
+      )}
+
       {/* ── Stat Cards Grid ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         <StatCard label="Total" value={stats.total} icon={FileText} colorClass="border-slate-200 text-slate-800" />
@@ -396,11 +443,20 @@ const AdminDashboard = () => {
               onClick={() => setStatusFilter(f.value)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === f.value
-                  ? 'bg-slate-800 text-white shadow-sm'
+                  ? f.value === 'critical'
+                    ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
+                    : 'bg-slate-800 text-white shadow-sm'
+                  : f.value === 'critical'
+                  ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               {f.label}
+              {f.value === 'critical' && activeCriticalItems.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-700 text-white text-[10px]">
+                  {activeCriticalItems.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -446,7 +502,9 @@ const AdminDashboard = () => {
           icon={Shield}
           title="No requests found"
           message={
-            statusFilter !== 'all'
+            statusFilter === 'critical'
+              ? 'Great news! No pending or accepted requests are currently in critical urgency.'
+              : statusFilter !== 'all'
               ? `No food requests with status "${statusFilter}" in the database.`
               : 'No food requests have been submitted yet.'
           }
@@ -454,17 +512,16 @@ const AdminDashboard = () => {
           onAction={() => setStatusFilter('all')}
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredRequests.map((req) => {
             const isActionLoading = actionLoadingId === req._id;
             const isPending = req.status === 'pending';
             const isAccepted = req.status === 'accepted';
-            const isAssignable = isPending || isAccepted;
 
             return (
               <div
                 key={req._id}
-                className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-amber-300 hover:shadow-sm transition-all"
+                className={`bg-white rounded-2xl p-4 sm:p-5 transition-all ${getCardUrgencyStyles(req)}`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                   {/* Left: Info */}
@@ -478,6 +535,7 @@ const AdminDashboard = () => {
                         <h3 className="font-bold text-slate-900 text-base leading-tight">
                           {req.foodType}
                         </h3>
+                        <UrgencyBadge request={req} />
                         <StatusBadge status={req.status} />
                       </div>
 
@@ -589,3 +647,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

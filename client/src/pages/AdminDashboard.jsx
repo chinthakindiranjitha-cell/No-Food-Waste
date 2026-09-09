@@ -6,6 +6,7 @@ import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import MapView from '../components/MapView';
+import BatchSuggestionsPanel from '../components/BatchSuggestionsPanel';
 import UrgencyBadge, { getCardUrgencyStyles, getUrgencyInfo } from '../components/UrgencyBadge';
 import {
   Shield,
@@ -14,6 +15,7 @@ import {
   CheckCircle,
   XCircle,
   UserCheck,
+  Users,
   X,
   Package,
   MapPin,
@@ -423,6 +425,12 @@ const AdminDashboard = () => {
         <StatCard label="Delivered" value={stats.delivered} icon={Package} colorClass="border-emerald-200 text-emerald-700" />
         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} colorClass="border-rose-200 text-rose-700" />
       </div>
+
+      {/* ── Batch Suggestions Panel ── */}
+      <BatchSuggestionsPanel
+        volunteers={volunteers}
+        onBatchAssigned={() => fetchData(true)}
+      />
 
       {/* ── Filter Bar & View Toggle ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">

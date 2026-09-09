@@ -5,6 +5,7 @@ import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import MapView from '../components/MapView';
+import BatchTripCard from '../components/BatchTripCard';
 import {
   Bike,
   CheckCircle2,
@@ -303,6 +304,22 @@ const VolunteerDashboard = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredAssignments.map((assignment) => {
+            // Batch assignments get their own card
+            if (assignment.isBatch) {
+              return (
+                <BatchTripCard
+                  key={assignment._id}
+                  assignment={assignment}
+                  onUpdate={(updated) =>
+                    setAssignments((prev) =>
+                      prev.map((a) => (a._id === updated._id ? updated : a))
+                    )
+                  }
+                />
+              );
+            }
+
+            // Single-request assignments — existing card layout
             const reqData = assignment.requestId || {};
             const isUpdating = updatingId === assignment._id;
 

@@ -1,4 +1,4 @@
-import FoodRequest from '../models/FoodRequest.js';
+import FoodRequest, { calculateExpiresAt, getUrgencyLevel } from '../models/FoodRequest.js';
 import Assignment from '../models/Assignment.js';
 import User from '../models/User.js';
 
@@ -21,6 +21,18 @@ const sanitizeErrorMessage = (error, defaultMessage) => {
   return defaultMessage || 'An unexpected error occurred. Please try again.';
 };
 
+// Helper to ensure urgency fields and virtual getters are present
+const ensureRequestUrgency = (doc) => {
+  if (!doc) return doc;
+  const obj = doc.toObject ? doc.toObject({ virtuals: true }) : { ...doc };
+  if (!obj.foodCategory) obj.foodCategory = 'cooked';
+  if (!obj.expiresAt) {
+    obj.expiresAt = calculateExpiresAt(obj.foodCategory, obj.createdAt || new Date());
+  }
+  obj.urgencyLevel = getUrgencyLevel(obj);
+  return obj;
+};
+
 // @desc    Create a new food request
 // @route   POST /api/requests
 // @access  Private (Requester, Admin)
@@ -28,6 +40,7 @@ export const createFoodRequest = async (req, res) => {
   try {
     const {
       foodType,
+      foodCategory,
       quantity,
       unit,
       pickupAddress,
@@ -52,6 +65,10 @@ export const createFoodRequest = async (req, res) => {
         message: 'Quantity must be a positive number'
       });
     }
+
+    const validCategories = ['cooked', 'perishable', 'packaged'];
+    const category = foodCategory && validCategories.includes(foodCategory) ? foodCategory : 'cooked';
+    const expiresAt = calculateExpiresAt(category);
 
     let finalLocation = location || { lat: null, lng: null };
 
@@ -80,9 +97,11 @@ export const createFoodRequest = async (req, res) => {
     }
 
     // Create food request record
-    const foodRequest = await FoodRequest.create({
+    const foodRequestDoc = await FoodRequest.create({
       requesterId: req.user._id,
       foodType: foodType.trim(),
+      foodCategory: category,
+      expiresAt,
       quantity: numericQuantity,
       unit: unit.trim(),
       pickupAddress: pickupAddress.trim(),
@@ -92,6 +111,8 @@ export const createFoodRequest = async (req, res) => {
       photos: Array.isArray(photos) ? photos : photos ? [photos] : [],
       status: 'pending'
     });
+
+    const foodRequest = ensureRequestUrgency(foodRequestDoc);
 
     return res.status(201).json({
       success: true,
@@ -126,10 +147,12 @@ export const getAllFoodRequests = async (req, res) => {
       .populate('requesterId', 'name email phone')
       .sort({ createdAt: -1 });
 
+    const formattedRequests = requests.map(ensureRequestUrgency);
+
     return res.status(200).json({
       success: true,
-      count: requests.length,
-      requests
+      count: formattedRequests.length,
+      requests: formattedRequests
     });
   } catch (error) {
     const userMessage = sanitizeErrorMessage(
@@ -151,15 +174,49 @@ export const getMyFoodRequests = async (req, res) => {
     const requests = await FoodRequest.find({ requesterId: req.user._id })
       .sort({ createdAt: -1 });
 
+    const formattedRequests = requests.map(ensureRequestUrgency);
+
     return res.status(200).json({
       success: true,
-      count: requests.length,
-      requests
+      count: formattedRequests.length,
+      requests: formattedRequests
     });
   } catch (error) {
     const userMessage = sanitizeErrorMessage(
       error,
       'Unable to load your food requests right now. Please try again.'
+    );
+    return res.status(500).json({
+      success: false,
+      message: userMessage
+    });
+  }
+};
+
+// @desc    Get critical pending/accepted food requests sorted by soonest expiry
+// @route   GET /api/requests/critical
+// @access  Private (Admin only)
+export const getCriticalRequests = async (req, res) => {
+  try {
+    const requests = await FoodRequest.find({
+      status: { $in: ['pending', 'accepted'] }
+    }).populate('requesterId', 'name email phone');
+
+    const formatted = requests.map(ensureRequestUrgency);
+    const criticalRequests = formatted.filter((r) => r.urgencyLevel === 'critical');
+
+    // Sort by soonest expiry (ascending)
+    criticalRequests.sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
+
+    return res.status(200).json({
+      success: true,
+      count: criticalRequests.length,
+      requests: criticalRequests
+    });
+  } catch (error) {
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to load critical food requests.'
     );
     return res.status(500).json({
       success: false,
@@ -183,18 +240,20 @@ export const updateRequestStatus = async (req, res) => {
       });
     }
 
-    const foodRequest = await FoodRequest.findByIdAndUpdate(
+    const foodRequestDoc = await FoodRequest.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true, runValidators: true }
     ).populate('requesterId', 'name email');
 
-    if (!foodRequest) {
+    if (!foodRequestDoc) {
       return res.status(404).json({
         success: false,
         message: 'Food request not found'
       });
     }
+
+    const foodRequest = ensureRequestUrgency(foodRequestDoc);
 
     return res.status(200).json({
       success: true,
@@ -275,3 +334,4 @@ export const assignVolunteer = async (req, res) => {
     });
   }
 };
+

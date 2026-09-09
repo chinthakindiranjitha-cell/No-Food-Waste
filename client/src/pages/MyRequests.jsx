@@ -5,6 +5,7 @@ import StatusBadge from '../components/StatusBadge';
 import StatusTimeline from '../components/StatusTimeline';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
+import UrgencyBadge, { getCardUrgencyStyles } from '../components/UrgencyBadge';
 import { PlusCircle, Utensils, MapPin, Clock, CheckCircle2, Package, RefreshCw } from 'lucide-react';
 
 const MyRequests = () => {
@@ -121,7 +122,7 @@ const MyRequests = () => {
           {requests.map((req) => (
             <div
               key={req._id}
-              className="bg-white rounded-2xl border border-amber-100/90 p-6 shadow-xs hover:shadow-md transition-shadow space-y-5"
+              className={`bg-white rounded-2xl p-6 transition-all space-y-5 ${getCardUrgencyStyles(req)}`}
             >
               {/* Card Top Row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -136,7 +137,8 @@ const MyRequests = () => {
                   </div>
                 </div>
 
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <UrgencyBadge request={req} />
                   <StatusBadge status={req.status} className="text-xs px-3 py-1" />
                 </div>
               </div>

@@ -8,6 +8,7 @@ const CreateRequest = () => {
 
   const [formData, setFormData] = useState({
     foodType: '',
+    foodCategory: 'cooked',
     quantity: '',
     unit: 'meals',
     pickupAddress: '',
@@ -45,6 +46,7 @@ const CreateRequest = () => {
     try {
       const payload = {
         foodType: formData.foodType.trim(),
+        foodCategory: formData.foodCategory,
         quantity: Number(formData.quantity),
         unit: formData.unit,
         pickupAddress: formData.pickupAddress.trim(),
@@ -118,6 +120,80 @@ const CreateRequest = () => {
                 placeholder="e.g. 20 Packaged Lunch Boxes / Fresh Baked Pastries"
                 className="block w-full pl-10 pr-4 py-3 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:bg-white transition-all outline-none"
               />
+            </div>
+          </div>
+
+          {/* Food Category Selection */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              Food Safety Category <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label
+                className={`flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  formData.foodCategory === 'cooked'
+                    ? 'border-amber-500 bg-amber-50/70 ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="foodCategory"
+                    value="cooked"
+                    checked={formData.foodCategory === 'cooked'}
+                    onChange={handleChange}
+                    className="accent-amber-600"
+                  />
+                  <span className="font-bold text-slate-900 text-sm">Cooked Food</span>
+                </div>
+                <span className="text-xs text-amber-800 font-semibold mt-1">2-Hour Window</span>
+                <span className="text-[11px] text-slate-500 mt-0.5">Hot meals, catering surplus</span>
+              </label>
+
+              <label
+                className={`flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  formData.foodCategory === 'perishable'
+                    ? 'border-amber-500 bg-amber-50/70 ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="foodCategory"
+                    value="perishable"
+                    checked={formData.foodCategory === 'perishable'}
+                    onChange={handleChange}
+                    className="accent-amber-600"
+                  />
+                  <span className="font-bold text-slate-900 text-sm">Perishable</span>
+                </div>
+                <span className="text-xs text-amber-800 font-semibold mt-1">6-Hour Window</span>
+                <span className="text-[11px] text-slate-500 mt-0.5">Produce, dairy, raw foods</span>
+              </label>
+
+              <label
+                className={`flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  formData.foodCategory === 'packaged'
+                    ? 'border-amber-500 bg-amber-50/70 ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="foodCategory"
+                    value="packaged"
+                    checked={formData.foodCategory === 'packaged'}
+                    onChange={handleChange}
+                    className="accent-amber-600"
+                  />
+                  <span className="font-bold text-slate-900 text-sm">Packaged</span>
+                </div>
+                <span className="text-xs text-amber-800 font-semibold mt-1">24-Hour Window</span>
+                <span className="text-[11px] text-slate-500 mt-0.5 font-normal">Canned &amp; dry goods</span>
+              </label>
             </div>
           </div>
 

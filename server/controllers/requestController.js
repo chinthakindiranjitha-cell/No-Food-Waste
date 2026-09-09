@@ -275,3 +275,134 @@ export const assignVolunteer = async (req, res) => {
     });
   }
 };
+
+// ─── Haversine distance (returns km) ─────────────────────────────────────────
+const haversineKm = (lat1, lng1, lat2, lng2) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Check if two time windows overlap (null = flexible, always overlaps)
+const windowsOverlap = (s1, e1, s2, e2) => {
+  if (!s1 || !e1 || !s2 || !e2) return true; // flexible window — always overlaps
+  return new Date(s1) <= new Date(e2) && new Date(s2) <= new Date(e1);
+};
+
+// @desc    Get batch suggestions — clusters of nearby pending requests within 2km & overlapping windows
+// @route   GET /api/requests/batch-suggestions
+// @access  Private (Admin only)
+export const getBatchSuggestions = async (req, res) => {
+  try {
+    // Only pending requests with valid coordinates
+    const requests = await FoodRequest.find({
+      status: 'pending',
+      'location.lat': { $ne: null },
+      'location.lng': { $ne: null }
+    })
+      .populate('requesterId', 'name email phone')
+      .sort({ createdAt: 1 });
+
+    if (requests.length < 2) {
+      return res.status(200).json({ success: true, clusters: [] });
+    }
+
+    // Greedy clustering: group requests within 2km radius of each other
+    const RADIUS_KM = 2;
+    const visited = new Set();
+    const clusters = [];
+
+    for (let i = 0; i < requests.length; i++) {
+      if (visited.has(i)) continue;
+
+      const seed = requests[i];
+      const group = [seed];
+      visited.add(i);
+
+      for (let j = i + 1; j < requests.length; j++) {
+        if (visited.has(j)) continue;
+
+        const candidate = requests[j];
+        const dist = haversineKm(
+          seed.location.lat,
+          seed.location.lng,
+          candidate.location.lat,
+          candidate.location.lng
+        );
+
+        if (
+          dist <= RADIUS_KM &&
+          windowsOverlap(
+            seed.timeWindowStart,
+            seed.timeWindowEnd,
+            candidate.timeWindowStart,
+            candidate.timeWindowEnd
+          )
+        ) {
+          group.push(candidate);
+          visited.add(j);
+        }
+      }
+
+      // Only suggest clusters with >= 2 requests
+      if (group.length >= 2) {
+        // Compute centroid
+        const centLat = group.reduce((s, r) => s + r.location.lat, 0) / group.length;
+        const centLng = group.reduce((s, r) => s + r.location.lng, 0) / group.length;
+
+        // Sort by distance from centroid (optimal visiting order)
+        const ordered = [...group].sort((a, b) => {
+          const dA = haversineKm(centLat, centLng, a.location.lat, a.location.lng);
+          const dB = haversineKm(centLat, centLng, b.location.lat, b.location.lng);
+          return dA - dB;
+        });
+
+        // Compute max spread distance (for display)
+        let maxSpreadKm = 0;
+        for (let a = 0; a < group.length; a++) {
+          for (let b = a + 1; b < group.length; b++) {
+            const d = haversineKm(
+              group[a].location.lat,
+              group[a].location.lng,
+              group[b].location.lat,
+              group[b].location.lng
+            );
+            if (d > maxSpreadKm) maxSpreadKm = d;
+          }
+        }
+
+        // Total quantity (best-effort — only for same unit)
+        const units = [...new Set(group.map((r) => r.unit))];
+        const totalQuantity =
+          units.length === 1
+            ? group.reduce((s, r) => s + r.quantity, 0)
+            : null;
+
+        clusters.push({
+          requestIds: ordered.map((r) => r._id),
+          totalItems: group.length,
+          totalQuantity,
+          unit: units.length === 1 ? units[0] : 'mixed units',
+          radiusKm: Math.round(maxSpreadKm * 100) / 100,
+          centroid: { lat: centLat, lng: centLng },
+          orderedRequests: ordered
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, clusters });
+  } catch (error) {
+    const userMessage = sanitizeErrorMessage(
+      error,
+      'Unable to compute batch suggestions at this time.'
+    );
+    return res.status(500).json({ success: false, message: userMessage });
+  }
+};
+

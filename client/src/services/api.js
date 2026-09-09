@@ -53,6 +53,10 @@ export const requestService = {
     const response = await api.post(`/requests/${requestId}/assign`, { volunteerId });
     return response.data;
   },
+  getBatchSuggestions: async () => {
+    const response = await api.get('/requests/batch-suggestions');
+    return response.data;
+  },
 };
 
 // Volunteer Service functions
@@ -75,6 +79,14 @@ export const assignmentService = {
   },
   updateStatus: async (id, status) => {
     const response = await api.patch(`/assignments/${id}/status`, { status });
+    return response.data;
+  },
+  createBatchAssignment: async ({ requestIds, volunteerId }) => {
+    const response = await api.post('/assignments/batch', { requestIds, volunteerId });
+    return response.data;
+  },
+  updateStopStatus: async (assignmentId, requestId, status) => {
+    const response = await api.patch(`/assignments/${assignmentId}/stops/${requestId}/status`, { status });
     return response.data;
   },
 };

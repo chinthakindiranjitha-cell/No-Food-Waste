@@ -4,7 +4,8 @@ import {
   getMyFoodRequests,
   getAllFoodRequests,
   updateRequestStatus,
-  assignVolunteer
+  assignVolunteer,
+  getBatchSuggestions
 } from '../controllers/requestController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -21,6 +22,10 @@ router.post('/', authorize('requester', 'admin'), createFoodRequest);
 
 // GET /api/requests/my - Get user's requests (Requester & Admin)
 router.get('/my', authorize('requester', 'admin'), getMyFoodRequests);
+
+// GET /api/requests/batch-suggestions - Get clustered batch suggestions (Admin only)
+// NOTE: Must be before /:id routes to avoid param collision
+router.get('/batch-suggestions', authorize('admin'), getBatchSuggestions);
 
 // PATCH /api/requests/:id/status - Update request status (Admin only)
 router.patch('/:id/status', authorize('admin'), updateRequestStatus);

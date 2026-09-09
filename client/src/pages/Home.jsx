@@ -77,7 +77,7 @@ const Home = () => {
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
             {user ? (
               <>
-                Welcome back, <span className="underline decoration-amber-300/60 decoration-wavy">{user.name}</span>! 👋
+                Welcome back, <span className="decoration-amber-300/60">{user.name}</span>! 
               </>
             ) : (
               <>Connecting Surplus Food with Hungry Neighbors</>
